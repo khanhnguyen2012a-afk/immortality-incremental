@@ -1,4 +1,4 @@
--- ONYX HUB - STARS RANDOM
+-- ONYX HUB - MINIMAL NOTIFY
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local RS = game:GetService("ReplicatedStorage")
@@ -17,14 +17,9 @@ local Window = Rayfield:CreateWindow({
 
 -- ===== CHECK STATUS =====
 local status = {
-    speedRemote = false,
-    folder = false,
-    teleportPart = false,
-    starCount = 0,
-    charReady = false,
-    remotePath = "?",
-    folderPath = "?",
-    teleportPath = "?",
+    speedRemote = false, folder = false, teleportPart = false,
+    starCount = 0, charReady = false,
+    remotePath = "?", folderPath = "?", teleportPath = "?",
 }
 
 local function checkRemote()
@@ -140,21 +135,15 @@ local function refreshCache()
 end
 
 local function getCache()
-    if tick() - cacheTime > CACHE_TTL then
-        refreshCache()
-    end
+    if tick() - cacheTime > CACHE_TTL then refreshCache() end
     return starCache
 end
 
--- Pick star ngẫu nhiên
 local function pickRandom()
     local cache = getCache()
-    -- Lọc star nào còn tồn tại
     local valid = {}
     for _, entry in ipairs(cache) do
-        if entry.star.Parent then
-            valid[#valid + 1] = entry
-        end
+        if entry.star.Parent then valid[#valid + 1] = entry end
     end
     if #valid == 0 then return nil, nil end
     local picked = valid[math.random(1, #valid)]
@@ -165,14 +154,7 @@ local function teleportToStart()
     if not teleportPart or not teleportPart.Parent then
         teleportPart = checkTeleportPart()
     end
-    if not teleportPart then
-        Rayfield:Notify({
-            Title = "Teleport",
-            Content = "✗ Part không tìm thấy",
-            Duration = 3,
-        })
-        return false
-    end
+    if not teleportPart then return false end
     local char = LP.Character
     if not char then return false end
     local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -181,22 +163,20 @@ local function teleportToStart()
     return true
 end
 
+-- Reset về state Speed tab
+local function resetWalkSpeed()
+    local char = LP.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.WalkSpeed = speedEnabled and currentSpeed or DEFAULT_SPEED
+        end
+    end
+end
+
 local function startWalk()
     if walkRunning then return end
-    local ok = teleportToStart()
-    if ok then
-        Rayfield:Notify({
-            Title = "Stars",
-            Content = "Đã teleport, bắt đầu lụm random",
-            Duration = 3,
-        })
-    else
-        Rayfield:Notify({
-            Title = "Stars",
-            Content = "Teleport fail, vẫn bắt đầu",
-            Duration = 3,
-        })
-    end
+    teleportToStart()
     task.wait(0.3)
 
     walkRunning = true
@@ -226,7 +206,6 @@ local function startWalk()
                 if (hrp.Position - targetPos).Magnitude < 4 then break end
                 task.wait(0.1)
             end
-            -- Không visited, loop lại pick random tiếp
         end
     end)
 end
@@ -236,8 +215,11 @@ local function stopWalk()
     local char = LP.Character
     if char then
         local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum and hum.RootPart then hum:MoveTo(hum.RootPart.Position) end
+        if hum and hum.RootPart then
+            hum:MoveTo(hum.RootPart.Position)
+        end
     end
+    resetWalkSpeed()
 end
 
 -- ===== TABS =====
@@ -254,11 +236,7 @@ StarsTab:CreateToggle({
     CurrentValue = false,
     Flag = "WalkToggle",
     Callback = function(v)
-        if v then
-            startWalk()
-        else
-            stopWalk()
-        end
+        if v then startWalk() else stopWalk() end
     end,
 })
 
@@ -270,6 +248,10 @@ StarsTab:CreateSlider({
     CurrentValue = 25, Flag = "WalkSpeedSlider",
     Callback = function(v)
         walkSpeed = v
+        if walkRunning then
+            local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+            if hum then hum.WalkSpeed = v end
+        end
     end,
 })
 
@@ -290,9 +272,6 @@ MiasmaTab:CreateButton({
     Callback = function()
         if miasmaRemote then
             pcall(function() miasmaRemote:FireServer() end)
-            Rayfield:Notify({Title = "Miasma", Content = "Fired 1x", Duration = 2})
-        else
-            Rayfield:Notify({Title = "Error", Content = "Remote không tìm thấy", Duration = 2})
         end
     end,
 })
@@ -306,7 +285,7 @@ SpeedTab:CreateToggle({
     Flag = "SpeedToggle",
     Callback = function(v)
         speedEnabled = v
-        if humanoid then
+        if not walkRunning and humanoid then
             humanoid.WalkSpeed = speedEnabled and currentSpeed or DEFAULT_SPEED
         end
     end,
@@ -318,7 +297,7 @@ SpeedTab:CreateSlider({
     CurrentValue = 100, Flag = "SpeedSlider",
     Callback = function(v)
         currentSpeed = v
-        if speedEnabled and humanoid then
+        if speedEnabled and not walkRunning and humanoid then
             humanoid.WalkSpeed = v
         end
     end,
@@ -328,45 +307,21 @@ SpeedTab:CreateButton({
     Name = "Reset về 100",
     Callback = function()
         currentSpeed = 100
-        if speedEnabled and humanoid then
+        if speedEnabled and not walkRunning and humanoid then
             humanoid.WalkSpeed = 100
         end
-        Rayfield:Notify({Title = "Speed", Content = "Reset 100", Duration = 2})
     end,
 })
 
 -- ============ STATUS TAB ============
 StatusTab:CreateSection("System Status")
 
-local remoteStat = StatusTab:CreateParagraph({
-    Title = "GainMiasma Remote",
-    Content = "Đang check...",
-})
-
-local folderStat = StatusTab:CreateParagraph({
-    Title = "Star Folder",
-    Content = "Đang check...",
-})
-
-local tpStat = StatusTab:CreateParagraph({
-    Title = "Teleport Part",
-    Content = "Đang check...",
-})
-
-local charStat = StatusTab:CreateParagraph({
-    Title = "Character",
-    Content = "Đang check...",
-})
-
-local activeStat = StatusTab:CreateParagraph({
-    Title = "Active Features",
-    Content = "Đang check...",
-})
-
-local starStat = StatusTab:CreateParagraph({
-    Title = "Live Star Count",
-    Content = "0",
-})
+local remoteStat = StatusTab:CreateParagraph({ Title = "GainMiasma Remote", Content = "..." })
+local folderStat = StatusTab:CreateParagraph({ Title = "Star Folder", Content = "..." })
+local tpStat = StatusTab:CreateParagraph({ Title = "Teleport Part", Content = "..." })
+local charStat = StatusTab:CreateParagraph({ Title = "Character", Content = "..." })
+local activeStat = StatusTab:CreateParagraph({ Title = "Active Features", Content = "..." })
+local starStat = StatusTab:CreateParagraph({ Title = "Live Star Count", Content = "0" })
 
 task.spawn(function()
     while task.wait(1) do
@@ -434,7 +389,7 @@ task.spawn(function()
     end
 end)
 
--- ===== WELCOME =====
+-- ===== WELCOME (1 notify duy nhất) =====
 Rayfield:Notify({
     Title = "Onyx Hub",
     Content = string.format(
@@ -443,5 +398,5 @@ Rayfield:Notify({
         status.folder and "OK" or "MISS",
         status.teleportPart and "OK" or "MISS"
     ),
-    Duration = 5,
+    Duration = 4,
 })
