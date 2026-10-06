@@ -1,7 +1,8 @@
--- ONYX HUB - MINIMAL NOTIFY
+-- ONYX HUB - FULL
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local RS = game:GetService("ReplicatedStorage")
+local VirtualUser = game:GetService("VirtualUser")
 
 local LP = Players.LocalPlayer
 
@@ -88,6 +89,67 @@ end
 
 status.starCount = countStars()
 
+-- ===== ANTI-AFK MODULE =====
+local AntiAFK = {}
+AntiAFK.enabled = false
+AntiAFK.thread = nil
+AntiAFK.idleConn = nil
+AntiAFK.interval = 60
+AntiAFK.restartToken = 0
+
+function AntiAFK.start()
+    if AntiAFK.enabled then return end
+    AntiAFK.enabled = true
+
+    AntiAFK.idleConn = LP.Idled:Connect(function()
+        if not AntiAFK.enabled then return end
+        pcall(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
+        end)
+    end)
+
+    AntiAFK.restartToken += 1
+    local myToken = AntiAFK.restartToken
+    AntiAFK.thread = task.spawn(function()
+        while AntiAFK.enabled and myToken == AntiAFK.restartToken do
+            task.wait(AntiAFK.interval)
+            if not AntiAFK.enabled then break end
+            if myToken ~= AntiAFK.restartToken then break end
+
+            local char = LP.Character
+            if char then
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    hum.Jump = true
+                end
+            end
+        end
+    end)
+end
+
+function AntiAFK.stop()
+    AntiAFK.enabled = false
+    AntiAFK.restartToken += 1
+    if AntiAFK.thread then
+        pcall(task.cancel, AntiAFK.thread)
+        AntiAFK.thread = nil
+    end
+    if AntiAFK.idleConn then
+        AntiAFK.idleConn:Disconnect()
+        AntiAFK.idleConn = nil
+    end
+end
+
+function AntiAFK.setInterval(sec)
+    AntiAFK.interval = sec
+    if AntiAFK.enabled then
+        AntiAFK.stop()
+        task.wait(0.1)
+        AntiAFK.start()
+    end
+end
+
 -- ===== CONFIG =====
 local DEFAULT_SPEED = 16
 local currentSpeed = 100
@@ -163,7 +225,6 @@ local function teleportToStart()
     return true
 end
 
--- Reset về state Speed tab
 local function resetWalkSpeed()
     local char = LP.Character
     if char then
@@ -226,6 +287,7 @@ end
 local StarsTab = Window:CreateTab("Stars", 4483362458)
 local MiasmaTab = Window:CreateTab("Miasma", 4483362458)
 local SpeedTab = Window:CreateTab("Speed", 4483362458)
+local AntiAFKTab = Window:CreateTab("Anti-AFK", 4483362458)
 local StatusTab = Window:CreateTab("Status", 4483362458)
 
 -- ============ STARS TAB ============
@@ -313,6 +375,32 @@ SpeedTab:CreateButton({
     end,
 })
 
+-- ============ ANTI-AFK TAB ============
+AntiAFKTab:CreateSection("Anti AFK")
+
+AntiAFKTab:CreateToggle({
+    Name = "Bật Anti-AFK",
+    CurrentValue = false,
+    Flag = "AntiAFKToggle",
+    Callback = function(v)
+        if v then AntiAFK.start() else AntiAFK.stop() end
+    end,
+})
+
+AntiAFKTab:CreateSlider({
+    Name = "Interval nhảy",
+    Range = {10, 300}, Increment = 5, Suffix = "s",
+    CurrentValue = 60, Flag = "AntiAFKInterval",
+    Callback = function(v)
+        AntiAFK.setInterval(v)
+    end,
+})
+
+AntiAFKTab:CreateParagraph({
+    Title = "Info",
+    Content = "Idle event + nhảy theo interval. Slider 10-300s. Chỉnh khi đang chạy tự update."
+})
+
 -- ============ STATUS TAB ============
 StatusTab:CreateSection("System Status")
 
@@ -363,10 +451,11 @@ task.spawn(function()
         activeStat:Set({
             Title = "Active Features",
             Content = string.format(
-                "Speed: %s\nMiasma: %s\nStars: %s",
+                "Speed: %s\nMiasma: %s\nStars: %s\nAnti-AFK: %s",
                 speedEnabled and "ON" or "OFF",
                 spamEnabled and "ON" or "OFF",
-                walkRunning and "ON" or "OFF"
+                walkRunning and "ON" or "OFF",
+                AntiAFK.enabled and "ON" or "OFF"
             ),
         })
 
@@ -389,7 +478,7 @@ task.spawn(function()
     end
 end)
 
--- ===== WELCOME (1 notify duy nhất) =====
+-- ===== WELCOME =====
 Rayfield:Notify({
     Title = "Onyx Hub",
     Content = string.format(
