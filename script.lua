@@ -183,7 +183,7 @@ local spamDelay = 0.1
 
 -- BLOODLINE
 local bloodlineEnabled = false
-local bloodlineInterval = 1
+local bloodlineInterval = 0  -- 0 = max speed
 
 -- STARS
 local walkRunning = false
@@ -368,11 +368,11 @@ BloodlineTab:CreateToggle({
 })
 
 BloodlineTab:CreateSlider({
-    Name = "Interval Roll",
-    Range = {5, 100}, Increment = 5, Suffix = "x100ms",
-    CurrentValue = 10, Flag = "BloodlineInterval",
+    Name = "Interval (0 = max speed)",
+    Range = {0, 100}, Increment = 5, Suffix = "x10ms",
+    CurrentValue = 0, Flag = "BloodlineInterval",
     Callback = function(v)
-        bloodlineInterval = v / 10
+        bloodlineInterval = v / 100
     end,
 })
 
@@ -387,7 +387,7 @@ BloodlineTab:CreateButton({
 
 BloodlineTab:CreateParagraph({
     Title = "Info",
-    Content = "Auto gọi RollBloodline:InvokeServer() theo interval. Slider 0.5s - 10s."
+    Content = "Slider 0 = max speed (~9 roll/s). Tăng lên để tránh bị flag."
 })
 
 -- ============ SPEED TAB ============
@@ -450,7 +450,7 @@ AntiAFKTab:CreateSlider({
 
 AntiAFKTab:CreateParagraph({
     Title = "Info",
-    Content = "Idle event + nhảy theo interval. Slider 10-300s. Chỉnh khi đang chạy tự update."
+    Content = "Idle event + nhảy theo interval. Slider 10-300s."
 })
 
 -- ============ STATUS TAB ============
@@ -540,14 +540,16 @@ task.spawn(function()
     end
 end)
 
--- ===== BLOODLINE AUTO ROLL LOOP =====
+-- ===== BLOODLINE AUTO ROLL LOOP (MAX SPEED) =====
 task.spawn(function()
     while true do
         if bloodlineEnabled and bloodlineRemote then
             pcall(function() bloodlineRemote:InvokeServer() end)
-            task.wait(bloodlineInterval)
+            if bloodlineInterval > 0 then
+                task.wait(bloodlineInterval)
+            end
         else
-            task.wait(0.1)
+            task.wait(0.05)
         end
     end
 end)
