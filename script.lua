@@ -1,4 +1,4 @@
--- ONYX HUB - FULL
+-- ONYX HUB - FULL (NO BLOODLINE)
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local RS = game:GetService("ReplicatedStorage")
@@ -18,9 +18,9 @@ local Window = Rayfield:CreateWindow({
 
 -- ===== CHECK STATUS =====
 local status = {
-    speedRemote = false, folder = false, teleportPart = false, bloodlineRemote = false,
+    speedRemote = false, folder = false, teleportPart = false,
     starCount = 0, charReady = false,
-    remotePath = "?", folderPath = "?", teleportPath = "?", bloodlinePath = "?",
+    remotePath = "?", folderPath = "?", teleportPath = "?",
 }
 
 local function checkRemote()
@@ -34,20 +34,6 @@ local function checkRemote()
         end
     end
     status.speedRemote = false
-    return nil
-end
-
-local function checkBloodlineRemote()
-    local ev = RS:FindFirstChild("RemoteEvents")
-    if ev then
-        local r = ev:FindFirstChild("RollBloodline")
-        if r then
-            status.bloodlineRemote = true
-            status.bloodlinePath = r:GetFullName()
-            return r
-        end
-    end
-    status.bloodlineRemote = false
     return nil
 end
 
@@ -88,7 +74,6 @@ local function checkChar()
 end
 
 local miasmaRemote = checkRemote()
-local bloodlineRemote = checkBloodlineRemote()
 local folder = checkFolder()
 local teleportPart = checkTeleportPart()
 checkChar()
@@ -180,10 +165,6 @@ LP.CharacterAdded:Connect(bindChar)
 -- MIASMA
 local spamEnabled = false
 local spamDelay = 0.1
-
--- BLOODLINE
-local bloodlineEnabled = false
-local bloodlineInterval = 0  -- 0 = max speed
 
 -- STARS
 local walkRunning = false
@@ -302,7 +283,6 @@ end
 -- ===== TABS =====
 local StarsTab = Window:CreateTab("Stars", 4483362458)
 local MiasmaTab = Window:CreateTab("Miasma", 4483362458)
-local BloodlineTab = Window:CreateTab("Bloodline", 4483362458)
 local SpeedTab = Window:CreateTab("Speed", 4483362458)
 local AntiAFKTab = Window:CreateTab("Anti-AFK", 4483362458)
 local StatusTab = Window:CreateTab("Status", 4483362458)
@@ -353,41 +333,6 @@ MiasmaTab:CreateButton({
             pcall(function() miasmaRemote:FireServer() end)
         end
     end,
-})
-
--- ============ BLOODLINE TAB ============
-BloodlineTab:CreateSection("Auto Roll Bloodline")
-
-BloodlineTab:CreateToggle({
-    Name = "Bật Auto Roll",
-    CurrentValue = false,
-    Flag = "BloodlineToggle",
-    Callback = function(v)
-        bloodlineEnabled = v
-    end,
-})
-
-BloodlineTab:CreateSlider({
-    Name = "Interval (0 = max speed)",
-    Range = {0, 100}, Increment = 5, Suffix = "x10ms",
-    CurrentValue = 0, Flag = "BloodlineInterval",
-    Callback = function(v)
-        bloodlineInterval = v / 100
-    end,
-})
-
-BloodlineTab:CreateButton({
-    Name = "Roll 1 Lần",
-    Callback = function()
-        if bloodlineRemote then
-            pcall(function() bloodlineRemote:InvokeServer() end)
-        end
-    end,
-})
-
-BloodlineTab:CreateParagraph({
-    Title = "Info",
-    Content = "Slider 0 = max speed (~9 roll/s). Tăng lên để tránh bị flag."
 })
 
 -- ============ SPEED TAB ============
@@ -457,7 +402,6 @@ AntiAFKTab:CreateParagraph({
 StatusTab:CreateSection("System Status")
 
 local remoteStat = StatusTab:CreateParagraph({ Title = "GainMiasma Remote", Content = "..." })
-local blStat = StatusTab:CreateParagraph({ Title = "RollBloodline Remote", Content = "..." })
 local folderStat = StatusTab:CreateParagraph({ Title = "Star Folder", Content = "..." })
 local tpStat = StatusTab:CreateParagraph({ Title = "Teleport Part", Content = "..." })
 local charStat = StatusTab:CreateParagraph({ Title = "Character", Content = "..." })
@@ -472,14 +416,6 @@ task.spawn(function()
         remoteStat:Set({
             Title = "GainMiasma Remote",
             Content = status.speedRemote and ("✓ " .. status.remotePath) or "✗ Không tìm thấy",
-        })
-
-        if not bloodlineRemote or not bloodlineRemote.Parent then
-            bloodlineRemote = checkBloodlineRemote()
-        end
-        blStat:Set({
-            Title = "RollBloodline Remote",
-            Content = status.bloodlineRemote and ("✓ " .. status.bloodlinePath) or "✗ Không tìm thấy",
         })
 
         if not folder or not folder.Parent then
@@ -512,10 +448,9 @@ task.spawn(function()
         activeStat:Set({
             Title = "Active Features",
             Content = string.format(
-                "Speed: %s\nMiasma: %s\nBloodline: %s\nStars: %s\nAnti-AFK: %s",
+                "Speed: %s\nMiasma: %s\nStars: %s\nAnti-AFK: %s",
                 speedEnabled and "ON" or "OFF",
                 spamEnabled and "ON" or "OFF",
-                bloodlineEnabled and "ON" or "OFF",
                 walkRunning and "ON" or "OFF",
                 AntiAFK.enabled and "ON" or "OFF"
             ),
@@ -540,29 +475,14 @@ task.spawn(function()
     end
 end)
 
--- ===== BLOODLINE AUTO ROLL LOOP (MAX SPEED) =====
-task.spawn(function()
-    while true do
-        if bloodlineEnabled and bloodlineRemote then
-            pcall(function() bloodlineRemote:InvokeServer() end)
-            if bloodlineInterval > 0 then
-                task.wait(bloodlineInterval)
-            end
-        else
-            task.wait(0.05)
-        end
-    end
-end)
-
 -- ===== WELCOME =====
 Rayfield:Notify({
     Title = "Onyx Hub",
     Content = string.format(
-        "Miasma: %s | Bloodline: %s | Folder: %s | Part: %s",
+        "Remote: %s | Folder: %s | Part: %s",
         status.speedRemote and "OK" or "MISS",
-        status.bloodlineRemote and "OK" or "MISS",
         status.folder and "OK" or "MISS",
         status.teleportPart and "OK" or "MISS"
     ),
-    Duration = 5,
+    Duration = 4,
 })
