@@ -1,4 +1,4 @@
--- ONYX HUB - FULL + GUI CONTROL
+-- ONYX HUB - FULL + GUI CONTROL (BUTTON)
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local RS = game:GetService("ReplicatedStorage")
@@ -403,25 +403,33 @@ SpeedTab:CreateButton({
 })
 
 -- ============ GUI CONTROL TAB ============
-GUITab:CreateSection("Toggle GUI")
+GUITab:CreateSection("Open GUI")
 
-GUITab:CreateToggle({
-    Name = "SpiritRootsGui",
-    CurrentValue = false,
-    Flag = "SpiritGuiToggle",
-    Callback = function(v)
+GUITab:CreateButton({
+    Name = "Mở SpiritRootsGui",
+    Callback = function()
         local gui = getSpiritGui()
-        if gui then setGuiState(gui, v) end
+        if gui then setGuiState(gui, true) end
     end,
 })
 
-GUITab:CreateToggle({
-    Name = "BloodlinesGui",
-    CurrentValue = false,
-    Flag = "BloodlinesGuiToggle",
-    Callback = function(v)
+GUITab:CreateButton({
+    Name = "Mở BloodlinesGui",
+    Callback = function()
         local gui = getBloodlinesGui()
-        if gui then setGuiState(gui, v) end
+        if gui then setGuiState(gui, true) end
+    end,
+})
+
+GUITab:CreateSection("Close GUI")
+
+GUITab:CreateButton({
+    Name = "Đóng Tất Cả GUI",
+    Callback = function()
+        local sg = getSpiritGui()
+        local bg = getBloodlinesGui()
+        if sg then setGuiState(sg, false) end
+        if bg then setGuiState(bg, false) end
     end,
 })
 
