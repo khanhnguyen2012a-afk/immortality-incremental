@@ -393,24 +393,28 @@ SpeedTab:CreateToggle({
     end,
 })
 
-SpeedTab:CreateSlider({
-    Name = "Speed Value",
-    Range = {16, 500}, Increment = 1, Suffix = "studs",
-    CurrentValue = 100, Flag = "SpeedSlider",
-    Callback = function(v)
-        currentSpeed = v
-        if speedEnabled and not walkRunning and humanoid then
-            humanoid.WalkSpeed = v
-        end
-    end,
-})
-
-SpeedTab:CreateButton({
-    Name = "Reset về 100",
-    Callback = function()
-        currentSpeed = 100
-        if speedEnabled and not walkRunning and humanoid then
-            humanoid.WalkSpeed = 100
+SpeedTab:CreateInput({
+    Name = "Speed Value (16-500)",
+    PlaceholderText = "Nhập số rồi Enter",
+    RemoveTextAfterFocusLost = true,
+    Callback = function(text)
+        local num = tonumber(text)
+        if num and num >= 16 and num <= 500 then
+            currentSpeed = num
+            if speedEnabled and not walkRunning and humanoid then
+                humanoid.WalkSpeed = num
+            end
+            Rayfield:Notify({
+                Title = "Speed",
+                Content = "Đã set " .. num,
+                Duration = 2,
+            })
+        else
+            Rayfield:Notify({
+                Title = "Lỗi",
+                Content = "Nhập số từ 16 đến 500",
+                Duration = 2,
+            })
         end
     end,
 })
