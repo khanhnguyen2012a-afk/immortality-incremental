@@ -1,4 +1,4 @@
--- ONYX HUB - FULL + GUI CONTROL (BUTTON)
+-- ONYX HUB - FULL
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local RS = game:GetService("ReplicatedStorage")
@@ -281,32 +281,45 @@ local function stopWalk()
 end
 
 -- ===== GUI CONTROL HELPERS =====
-local function getSpiritGui()
+local function findGui(name)
     local pg = LP:FindFirstChild("PlayerGui")
     if not pg then return nil end
+    local direct = pg:FindFirstChild(name)
+    if direct then return direct end
     local main = pg:FindFirstChild("MainGui")
-    if not main then return nil end
-    return main:FindFirstChild("SpiritRootsGui")
+    if main then return main:FindFirstChild(name) end
+    return nil
 end
 
-local function getBloodlinesGui()
-    local pg = LP:FindFirstChild("PlayerGui")
-    if not pg then return nil end
-    local main = pg:FindFirstChild("MainGui")
-    if not main then return nil end
-    return main:FindFirstChild("BloodlinesGui")
-end
-
-local function setGuiState(gui, state)
-    if not gui then return false end
-    local ok = pcall(function()
+local function forceShow(gui, state)
+    if not gui then return end
+    pcall(function()
         if gui:IsA("ScreenGui") then
             gui.Enabled = state
+            if state then
+                gui.DisplayOrder = 999
+                gui.IgnoreGuiInset = true
+            end
         elseif gui:IsA("GuiObject") then
             gui.Visible = state
         end
+
+        if state then
+            for _, c in ipairs(gui:GetDescendants()) do
+                if c:IsA("GuiObject") then
+                    pcall(function()
+                        c.Visible = true
+                        c.ZIndex = math.max(c.ZIndex, 50)
+                    end)
+                end
+                if c:IsA("CanvasGroup") then
+                    pcall(function()
+                        c.GroupTransparency = 0
+                    end)
+                end
+            end
+        end
     end)
-    return ok
 end
 
 -- ===== TABS =====
@@ -403,77 +416,80 @@ SpeedTab:CreateButton({
 })
 
 -- ============ GUI CONTROL TAB ============
-GUITab:CreateSection("Open GUI")
+GUITab:CreateSection("Toggle GUI")
 
-GUITab:CreateButton({
-    Name = "Mở SpiritRootsGui",
-    Callback = function()
-        local gui = getSpiritGui()
-        if gui then setGuiState(gui, true) end
+local guiIntent = { bloodlines = false, spirit = false }
+
+GUITab:CreateToggle({
+    Name = "BloodlinesGui",
+    CurrentValue = false,
+    Flag = "BloodlinesGuiToggle",
+    Callback = function(v)
+        guiIntent.bloodlines = v
+        local gui = findGui("BloodlinesGui")
+        forceShow(gui, v)
     end,
 })
 
-GUITab:CreateButton({
-    Name = "Mở BloodlinesGui",
-    Callback = function()
-        local gui = getBloodlinesGui()
-        if gui then setGuiState(gui, true) end
+GUITab:CreateToggle({
+    Name = "SpiritRootsGui",
+    CurrentValue = false,
+    Flag = "SpiritGuiToggle",
+    Callback = function(v)
+        guiIntent.spirit = v
+        local gui = findGui("SpiritRootsGui")
+        forceShow(gui, v)
     end,
 })
 
-GUITab:CreateSection("Close GUI")
+-- Force loop
+task.spawn(function()
+    while task.wait(0.1) do
+        if guiIntent.bloodlines then
+            local gui = findGui("BloodlinesGui")
+            if gui then
+                local current
+                if gui:IsA("ScreenGui") then
+                    current = gui.Enabled
+                elseif gui:IsA("GuiObject") then
+                    current = gui.Visible
+                end
+                if current ~= true then forceShow(gui, true) end
+            end
+        end
+        if guiIntent.spirit then
+            local gui = findGui("SpiritRootsGui")
+            if gui then
+                local current
+                if gui:IsA("ScreenGui") then
+                    current = gui.Enabled
+                elseif gui:IsA("GuiObject") then
+                    current = gui.Visible
+                end
+                if current ~= true then forceShow(gui, true) end
+            end
+        end
+    end
+end)
 
-GUITab:CreateButton({
-    Name = "Đóng Tất Cả GUI",
-    Callback = function()
-        local sg = getSpiritGui()
-        local bg = getBloodlinesGui()
-        if sg then setGuiState(sg, false) end
-        if bg then setGuiState(bg, false) end
-    end,
-})
-
+-- Status
 GUITab:CreateSection("Status")
 
-local spiritStat = GUITab:CreateParagraph({ 
-    Title = "SpiritRootsGui", 
-    Content = "..." 
-})
-local bloodStat = GUITab:CreateParagraph({ 
-    Title = "BloodlinesGui", 
-    Content = "..." 
-})
+local bloodStat = GUITab:CreateParagraph({ Title = "BloodlinesGui", Content = "..." })
+local spiritStat = GUITab:CreateParagraph({ Title = "SpiritRootsGui", Content = "..." })
 
--- Live update GUI status
 task.spawn(function()
     while task.wait(1) do
-        local sg = getSpiritGui()
-        if sg then
-            local state = sg:IsA("ScreenGui") and sg.Enabled or sg.Visible
-            spiritStat:Set({
-                Title = "SpiritRootsGui",
-                Content = string.format("✓ Found | State: %s", tostring(state))
-            })
-        else
-            spiritStat:Set({
-                Title = "SpiritRootsGui",
-                Content = "✗ Không tìm thấy"
-            })
-        end
-
-        local bg = getBloodlinesGui()
-        if bg then
-            local state = bg:IsA("ScreenGui") and bg.Enabled or bg.Visible
-            bloodStat:Set({
-                Title = "BloodlinesGui",
-                Content = string.format("✓ Found | State: %s", tostring(state))
-            })
-        else
-            bloodStat:Set({
-                Title = "BloodlinesGui",
-                Content = "✗ Không tìm thấy"
-            })
-        end
+        local bg = findGui("BloodlinesGui")
+        local sg = findGui("SpiritRootsGui")
+        bloodStat:Set({
+            Title = "BloodlinesGui",
+            Content = bg and string.format("✓ Found | Enabled: %s", tostring(bg.Enabled)) or "✗ Not found"
+        })
+        spiritStat:Set({
+            Title = "SpiritRootsGui",
+            Content = sg and string.format("✓ Found | Enabled: %s", tostring(sg.Enabled)) or "✗ Not found"
+        })
     end
 end)
 
