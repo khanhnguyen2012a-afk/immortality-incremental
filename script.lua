@@ -1,4 +1,4 @@
--- ONYX HUB - FULL (NO BLOODLINE)
+-- ONYX HUB - FULL + GUI CONTROL
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local RS = game:GetService("ReplicatedStorage")
@@ -280,10 +280,40 @@ local function stopWalk()
     resetWalkSpeed()
 end
 
+-- ===== GUI CONTROL HELPERS =====
+local function getSpiritGui()
+    local pg = LP:FindFirstChild("PlayerGui")
+    if not pg then return nil end
+    local main = pg:FindFirstChild("MainGui")
+    if not main then return nil end
+    return main:FindFirstChild("SpiritRootsGui")
+end
+
+local function getBloodlinesGui()
+    local pg = LP:FindFirstChild("PlayerGui")
+    if not pg then return nil end
+    local main = pg:FindFirstChild("MainGui")
+    if not main then return nil end
+    return main:FindFirstChild("BloodlinesGui")
+end
+
+local function setGuiState(gui, state)
+    if not gui then return false end
+    local ok = pcall(function()
+        if gui:IsA("ScreenGui") then
+            gui.Enabled = state
+        elseif gui:IsA("GuiObject") then
+            gui.Visible = state
+        end
+    end)
+    return ok
+end
+
 -- ===== TABS =====
 local StarsTab = Window:CreateTab("Stars", 4483362458)
 local MiasmaTab = Window:CreateTab("Miasma", 4483362458)
 local SpeedTab = Window:CreateTab("Speed", 4483362458)
+local GUITab = Window:CreateTab("GUI Control", 4483362458)
 local AntiAFKTab = Window:CreateTab("Anti-AFK", 4483362458)
 local StatusTab = Window:CreateTab("Status", 4483362458)
 
@@ -371,6 +401,73 @@ SpeedTab:CreateButton({
         end
     end,
 })
+
+-- ============ GUI CONTROL TAB ============
+GUITab:CreateSection("Toggle GUI")
+
+GUITab:CreateToggle({
+    Name = "SpiritRootsGui",
+    CurrentValue = false,
+    Flag = "SpiritGuiToggle",
+    Callback = function(v)
+        local gui = getSpiritGui()
+        if gui then setGuiState(gui, v) end
+    end,
+})
+
+GUITab:CreateToggle({
+    Name = "BloodlinesGui",
+    CurrentValue = false,
+    Flag = "BloodlinesGuiToggle",
+    Callback = function(v)
+        local gui = getBloodlinesGui()
+        if gui then setGuiState(gui, v) end
+    end,
+})
+
+GUITab:CreateSection("Status")
+
+local spiritStat = GUITab:CreateParagraph({ 
+    Title = "SpiritRootsGui", 
+    Content = "..." 
+})
+local bloodStat = GUITab:CreateParagraph({ 
+    Title = "BloodlinesGui", 
+    Content = "..." 
+})
+
+-- Live update GUI status
+task.spawn(function()
+    while task.wait(1) do
+        local sg = getSpiritGui()
+        if sg then
+            local state = sg:IsA("ScreenGui") and sg.Enabled or sg.Visible
+            spiritStat:Set({
+                Title = "SpiritRootsGui",
+                Content = string.format("✓ Found | State: %s", tostring(state))
+            })
+        else
+            spiritStat:Set({
+                Title = "SpiritRootsGui",
+                Content = "✗ Không tìm thấy"
+            })
+        end
+
+        local bg = getBloodlinesGui()
+        if bg then
+            local state = bg:IsA("ScreenGui") and bg.Enabled or bg.Visible
+            bloodStat:Set({
+                Title = "BloodlinesGui",
+                Content = string.format("✓ Found | State: %s", tostring(state))
+            })
+        else
+            bloodStat:Set({
+                Title = "BloodlinesGui",
+                Content = "✗ Không tìm thấy"
+            })
+        end
+    end
+end)
 
 -- ============ ANTI-AFK TAB ============
 AntiAFKTab:CreateSection("Anti AFK")
