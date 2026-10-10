@@ -1,4 +1,4 @@
--- ONYX HUB - FULL
+-- ONYX HUB - FULL + BEAST
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local RS = game:GetService("ReplicatedStorage")
@@ -166,6 +166,34 @@ LP.CharacterAdded:Connect(bindChar)
 local spamEnabled = false
 local spamDelay = 0.1
 
+-- BEAST
+local beastRemote = nil
+local soulFocusRemote = nil
+do
+    local ev = RS:FindFirstChild("RemoteEvents")
+    if ev then
+        beastRemote = ev:FindFirstChild("SetBeastStage")
+        soulFocusRemote = ev:FindFirstChild("SetSoulFocus")
+    end
+end
+
+local pendingStage = 0
+local lastHighestStage = 0
+local autoRunning = false
+
+local function getHighestStage()
+    local pg = LP:FindFirstChild("PlayerGui")
+    if not pg then return nil end
+    local display = pg:FindFirstChild("BeastStageDisplay")
+    if not display then return nil end
+    local root = display:FindFirstChild("Root")
+    if not root then return nil end
+    local textLabel = root:FindFirstChild("HighestStageText")
+    if not textLabel then return nil end
+    local text = textLabel.Text
+    return tonumber(text:match("%d+"))
+end
+
 -- STARS
 local walkRunning = false
 local walkSpeed = 25
@@ -325,6 +353,7 @@ end
 -- ===== TABS =====
 local StarsTab = Window:CreateTab("Stars", 4483362458)
 local MiasmaTab = Window:CreateTab("Miasma", 4483362458)
+local BeastTab = Window:CreateTab("Beast", 4483362458)
 local SpeedTab = Window:CreateTab("Speed", 4483362458)
 local GUITab = Window:CreateTab("GUI Control", 4483362458)
 local AntiAFKTab = Window:CreateTab("Anti-AFK", 4483362458)
@@ -377,6 +406,108 @@ MiasmaTab:CreateButton({
         end
     end,
 })
+
+-- ============ BEAST TAB ============
+BeastTab:CreateSection("Set Beast Stage")
+
+BeastTab:CreateInput({
+    Name = "Stage Number",
+    PlaceholderText = "Nhập số stage",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(text)
+        local num = tonumber(text)
+        if num then
+            pendingStage = num
+        else
+            pendingStage = 0
+        end
+    end,
+})
+
+BeastTab:CreateButton({
+    Name = "Set Stage",
+    Callback = function()
+        if pendingStage > 0 and beastRemote then
+            pcall(function()
+                beastRemote:FireServer(pendingStage)
+            end)
+            Rayfield:Notify({
+                Title = "Beast",
+                Content = "Đã set stage " .. pendingStage,
+                Duration = 2,
+            })
+        else
+            Rayfield:Notify({
+                Title = "Lỗi",
+                Content = "Nhập số stage trước",
+                Duration = 2,
+            })
+        end
+    end,
+})
+
+BeastTab:CreateSection("Auto Leo Stage")
+
+BeastTab:CreateToggle({
+    Name = "Bật Auto Leo Stage",
+    CurrentValue = false,
+    Flag = "AutoStageToggle",
+    Callback = function(v)
+        autoRunning = v
+        if v then
+            if soulFocusRemote then
+                pcall(function()
+                    soulFocusRemote:FireServer("Qi")
+                end)
+            end
+            lastHighestStage = 0
+        end
+    end,
+})
+
+BeastTab:CreateSection("Status")
+
+local beastStat = BeastTab:CreateParagraph({ Title = "SetBeastStage", Content = "..." })
+local soulStat = BeastTab:CreateParagraph({ Title = "SetSoulFocus", Content = "..." })
+local highStat = BeastTab:CreateParagraph({ Title = "Highest Stage", Content = "0" })
+local lastStat = BeastTab:CreateParagraph({ Title = "Last Set Stage", Content = "0" })
+
+task.spawn(function()
+    while task.wait(1) do
+        local highest = getHighestStage()
+        if highest then
+            if autoRunning and highest ~= lastHighestStage then
+                lastHighestStage = highest
+                if beastRemote then
+                    pcall(function()
+                        beastRemote:FireServer(highest)
+                    end)
+                    lastStat:Set({
+                        Title = "Last Set Stage",
+                        Content = tostring(highest) .. " @ " .. os.date("%H:%M:%S"),
+                    })
+                end
+            end
+            highStat:Set({
+                Title = "Highest Stage",
+                Content = tostring(highest),
+            })
+        else
+            highStat:Set({
+                Title = "Highest Stage",
+                Content = "✗ Không tìm thấy",
+            })
+        end
+        beastStat:Set({
+            Title = "SetBeastStage",
+            Content = beastRemote and "✓ Found" or "✗ Not found",
+        })
+        soulStat:Set({
+            Title = "SetSoulFocus",
+            Content = soulFocusRemote and "✓ Found" or "✗ Not found",
+        })
+    end
+end)
 
 -- ============ SPEED TAB ============
 SpeedTab:CreateSection("Speed Control")
@@ -446,18 +577,14 @@ GUITab:CreateToggle({
     end,
 })
 
--- Force loop
 task.spawn(function()
     while task.wait(0.1) do
         if guiIntent.bloodlines then
             local gui = findGui("BloodlinesGui")
             if gui then
                 local current
-                if gui:IsA("ScreenGui") then
-                    current = gui.Enabled
-                elseif gui:IsA("GuiObject") then
-                    current = gui.Visible
-                end
+                if gui:IsA("ScreenGui") then current = gui.Enabled
+                elseif gui:IsA("GuiObject") then current = gui.Visible end
                 if current ~= true then forceShow(gui, true) end
             end
         end
@@ -465,18 +592,14 @@ task.spawn(function()
             local gui = findGui("SpiritRootsGui")
             if gui then
                 local current
-                if gui:IsA("ScreenGui") then
-                    current = gui.Enabled
-                elseif gui:IsA("GuiObject") then
-                    current = gui.Visible
-                end
+                if gui:IsA("ScreenGui") then current = gui.Enabled
+                elseif gui:IsA("GuiObject") then current = gui.Visible end
                 if current ~= true then forceShow(gui, true) end
             end
         end
     end
 end)
 
--- Status
 GUITab:CreateSection("Status")
 
 local bloodStat = GUITab:CreateParagraph({ Title = "BloodlinesGui", Content = "..." })
@@ -488,11 +611,11 @@ task.spawn(function()
         local sg = findGui("SpiritRootsGui")
         bloodStat:Set({
             Title = "BloodlinesGui",
-            Content = bg and string.format("✓ Found | Enabled: %s", tostring(bg.Enabled)) or "✗ Not found"
+            Content = bg and ("✓ Enabled: " .. tostring(bg.Enabled)) or "✗ Not found"
         })
         spiritStat:Set({
             Title = "SpiritRootsGui",
-            Content = sg and string.format("✓ Found | Enabled: %s", tostring(sg.Enabled)) or "✗ Not found"
+            Content = sg and ("✓ Enabled: " .. tostring(sg.Enabled)) or "✗ Not found"
         })
     end
 end)
@@ -573,9 +696,10 @@ task.spawn(function()
         activeStat:Set({
             Title = "Active Features",
             Content = string.format(
-                "Speed: %s\nMiasma: %s\nStars: %s\nAnti-AFK: %s",
+                "Speed: %s\nMiasma: %s\nBeast Auto: %s\nStars: %s\nAnti-AFK: %s",
                 speedEnabled and "ON" or "OFF",
                 spamEnabled and "ON" or "OFF",
+                autoRunning and "ON" or "OFF",
                 walkRunning and "ON" or "OFF",
                 AntiAFK.enabled and "ON" or "OFF"
             ),
@@ -604,10 +728,10 @@ end)
 Rayfield:Notify({
     Title = "Onyx Hub",
     Content = string.format(
-        "Remote: %s | Folder: %s | Part: %s",
+        "Miasma: %s | Beast: %s | Folder: %s",
         status.speedRemote and "OK" or "MISS",
-        status.folder and "OK" or "MISS",
-        status.teleportPart and "OK" or "MISS"
+        (beastRemote and soulFocusRemote) and "OK" or "MISS",
+        status.folder and "OK" or "MISS"
     ),
-    Duration = 4,
+    Duration = 5,
 })
