@@ -1,4 +1,4 @@
--- ONYX HUB - FULL + BEAST
+-- ONYX HUB - FULL + BEAST KEEP STAGE
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local RS = game:GetService("ReplicatedStorage")
@@ -178,20 +178,33 @@ do
 end
 
 local pendingStage = 0
-local lastHighestStage = 0
-local autoRunning = false
+local keepStageValue = 0
+local keepStageRunning = false
+local keepStageThread = nil
 
-local function getHighestStage()
-    local pg = LP:FindFirstChild("PlayerGui")
-    if not pg then return nil end
-    local display = pg:FindFirstChild("BeastStageDisplay")
-    if not display then return nil end
-    local root = display:FindFirstChild("Root")
-    if not root then return nil end
-    local textLabel = root:FindFirstChild("HighestStageText")
-    if not textLabel then return nil end
-    local text = textLabel.Text
-    return tonumber(text:match("%d+"))
+local function startKeepStage()
+    if keepStageThread then
+        pcall(task.cancel, keepStageThread)
+        keepStageThread = nil
+    end
+    keepStageThread = task.spawn(function()
+        while keepStageRunning do
+            if keepStageValue > 0 and beastRemote then
+                pcall(function()
+                    beastRemote:FireServer(keepStageValue)
+                end)
+            end
+            task.wait(0.2) -- Tối ưu: 0.2s/lần, không gây lag
+        end
+    end)
+end
+
+local function stopKeepStage()
+    keepStageRunning = false
+    if keepStageThread then
+        pcall(task.cancel, keepStageThread)
+        keepStageThread = nil
+    end
 end
 
 -- STARS
@@ -446,21 +459,47 @@ BeastTab:CreateButton({
     end,
 })
 
-BeastTab:CreateSection("Auto Leo Stage")
+BeastTab:CreateSection("Keep Stage (Chống nhảy Stage)")
+
+BeastTab:CreateInput({
+    Name = "Stage muốn giữ",
+    PlaceholderText = "Nhập số stage",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(text)
+        local num = tonumber(text)
+        if num then
+            keepStageValue = num
+            if keepStageRunning and keepStageValue > 0 then
+                startKeepStage()
+            end
+        else
+            keepStageValue = 0
+        end
+    end,
+})
 
 BeastTab:CreateToggle({
-    Name = "Bật Auto Leo Stage",
+    Name = "Bật Giữ Stage",
     CurrentValue = false,
-    Flag = "AutoStageToggle",
+    Flag = "KeepStageToggle",
     Callback = function(v)
-        autoRunning = v
+        keepStageRunning = v
         if v then
             if soulFocusRemote then
                 pcall(function()
                     soulFocusRemote:FireServer("Qi")
                 end)
             end
-            lastHighestStage = 0
+            if keepStageValue > 0 then
+                startKeepStage()
+                Rayfield:Notify({Title = "Beast", Content = "Đang giữ stage " .. keepStageValue, Duration = 2})
+            else
+                Rayfield:Notify({Title = "Lỗi", Content = "Vui lòng nhập stage muốn giữ trước!", Duration = 3})
+                keepStageRunning = false
+            end
+        else
+            stopKeepStage()
+            Rayfield:Notify({Title = "Beast", Content = "Đã tắt giữ stage", Duration = 2})
         end
     end,
 })
@@ -469,35 +508,10 @@ BeastTab:CreateSection("Status")
 
 local beastStat = BeastTab:CreateParagraph({ Title = "SetBeastStage", Content = "..." })
 local soulStat = BeastTab:CreateParagraph({ Title = "SetSoulFocus", Content = "..." })
-local highStat = BeastTab:CreateParagraph({ Title = "Highest Stage", Content = "0" })
-local lastStat = BeastTab:CreateParagraph({ Title = "Last Set Stage", Content = "0" })
+local keepStat = BeastTab:CreateParagraph({ Title = "Keep Stage Status", Content = "OFF" })
 
 task.spawn(function()
     while task.wait(1) do
-        local highest = getHighestStage()
-        if highest then
-            if autoRunning and highest ~= lastHighestStage then
-                lastHighestStage = highest
-                if beastRemote then
-                    pcall(function()
-                        beastRemote:FireServer(highest)
-                    end)
-                    lastStat:Set({
-                        Title = "Last Set Stage",
-                        Content = tostring(highest) .. " @ " .. os.date("%H:%M:%S"),
-                    })
-                end
-            end
-            highStat:Set({
-                Title = "Highest Stage",
-                Content = tostring(highest),
-            })
-        else
-            highStat:Set({
-                Title = "Highest Stage",
-                Content = "✗ Không tìm thấy",
-            })
-        end
         beastStat:Set({
             Title = "SetBeastStage",
             Content = beastRemote and "✓ Found" or "✗ Not found",
@@ -505,6 +519,10 @@ task.spawn(function()
         soulStat:Set({
             Title = "SetSoulFocus",
             Content = soulFocusRemote and "✓ Found" or "✗ Not found",
+        })
+        keepStat:Set({
+            Title = "Keep Stage Status",
+            Content = keepStageRunning and ("ON | Giữ: " .. keepStageValue) or "OFF"
         })
     end
 end)
@@ -696,10 +714,10 @@ task.spawn(function()
         activeStat:Set({
             Title = "Active Features",
             Content = string.format(
-                "Speed: %s\nMiasma: %s\nBeast Auto: %s\nStars: %s\nAnti-AFK: %s",
+                "Speed: %s\nMiasma: %s\nKeep Stage: %s\nStars: %s\nAnti-AFK: %s",
                 speedEnabled and "ON" or "OFF",
                 spamEnabled and "ON" or "OFF",
-                autoRunning and "ON" or "OFF",
+                keepStageRunning and "ON" or "OFF",
                 walkRunning and "ON" or "OFF",
                 AntiAFK.enabled and "ON" or "OFF"
             ),
