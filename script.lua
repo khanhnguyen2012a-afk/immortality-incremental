@@ -1,4 +1,4 @@
--- ONYX HUB - FULL + BEAST KEEP STAGE
+-- ONYX HUB - FULL (BỎ SOUL FOCUS)
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local RS = game:GetService("ReplicatedStorage")
@@ -168,12 +168,10 @@ local spamDelay = 0.1
 
 -- BEAST
 local beastRemote = nil
-local soulFocusRemote = nil
 do
     local ev = RS:FindFirstChild("RemoteEvents")
     if ev then
         beastRemote = ev:FindFirstChild("SetBeastStage")
-        soulFocusRemote = ev:FindFirstChild("SetSoulFocus")
     end
 end
 
@@ -194,7 +192,7 @@ local function startKeepStage()
                     beastRemote:FireServer(keepStageValue)
                 end)
             end
-            task.wait(0.2) -- Tối ưu: 0.2s/lần, không gây lag
+            task.wait(5) -- 5 giây gọi 1 lần
         end
     end)
 end
@@ -485,11 +483,6 @@ BeastTab:CreateToggle({
     Callback = function(v)
         keepStageRunning = v
         if v then
-            if soulFocusRemote then
-                pcall(function()
-                    soulFocusRemote:FireServer("Qi")
-                end)
-            end
             if keepStageValue > 0 then
                 startKeepStage()
                 Rayfield:Notify({Title = "Beast", Content = "Đang giữ stage " .. keepStageValue, Duration = 2})
@@ -507,7 +500,6 @@ BeastTab:CreateToggle({
 BeastTab:CreateSection("Status")
 
 local beastStat = BeastTab:CreateParagraph({ Title = "SetBeastStage", Content = "..." })
-local soulStat = BeastTab:CreateParagraph({ Title = "SetSoulFocus", Content = "..." })
 local keepStat = BeastTab:CreateParagraph({ Title = "Keep Stage Status", Content = "OFF" })
 
 task.spawn(function()
@@ -515,10 +507,6 @@ task.spawn(function()
         beastStat:Set({
             Title = "SetBeastStage",
             Content = beastRemote and "✓ Found" or "✗ Not found",
-        })
-        soulStat:Set({
-            Title = "SetSoulFocus",
-            Content = soulFocusRemote and "✓ Found" or "✗ Not found",
         })
         keepStat:Set({
             Title = "Keep Stage Status",
@@ -545,7 +533,7 @@ SpeedTab:CreateToggle({
 SpeedTab:CreateInput({
     Name = "Speed Value (16-500)",
     PlaceholderText = "Nhập số rồi Enter",
-    RemoveTextAfterFocusLost = true,
+    RemoveTextAfterFocusLost = false,
     Callback = function(text)
         local num = tonumber(text)
         if num and num >= 16 and num <= 500 then
@@ -748,7 +736,7 @@ Rayfield:Notify({
     Content = string.format(
         "Miasma: %s | Beast: %s | Folder: %s",
         status.speedRemote and "OK" or "MISS",
-        (beastRemote and soulFocusRemote) and "OK" or "MISS",
+        beastRemote and "OK" or "MISS",
         status.folder and "OK" or "MISS"
     ),
     Duration = 5,
